@@ -1,0 +1,14 @@
+exclude: []
+default_rules:
+- ruleid_default: WiringCentral:Default_Cloned:691:1650894700
+  starttime_default: '19:0'
+  endtime_default: '19:0'
+  target_temperature_default: 20.0
+  day_of_week_default: Mon - Fri
+  hvac_mode_default: Heat
+- ruleid_default: WiringCentral:Default_Cloned:46:1650894700
+  starttime_default: '23:5'
+  endtime_default: '23:5'
+  target_temperature_default: 30.0
+  day_of_week_default: Sat - Sun
+  hvac_mode_default: Cool

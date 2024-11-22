@@ -1,0 +1,19 @@
+{
+  "domain": "wiring_central",
+  "name": "Wiring Central",
+  "config_flow": true,
+  "documentation": "https://github.com/home-assistant/example-custom-config/tree/master/custom_components/example_load_platform/",
+  "dependencies": ["http", "mqtt"],
+  "after_dependencies": [],
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "version": "0.10.5",
+  "codeowners": ["@elementzonline"],
+  "mqtt": [
+    "elementz/climate/#",
+    "elementz/sensor/#",
+    "elementz/switch/#"
+  ]
+}

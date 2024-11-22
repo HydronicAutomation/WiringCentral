@@ -1,0 +1,41 @@
+{
+  "config": {
+    "error": {
+      "min_max_error": "[%key:common::config_flow::error::min_max_error%]",
+      "exist_error": "[%key:common::config_flow::error::exist_error%]"
+    },
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+    },
+    "step": {
+      "user": {
+        "title": "[%key:common::config_flow::title%]",
+        "description": "[%key:common::config_flow::description%]",
+        "data": {
+          "moving_avg_length": "[%key:common::config_flow::data::moving_avg_length%]",
+          "round_value": "[%key:common::config_flow::data::round_value%]",
+          "min_temp": "[%key:common::config_flow::data::min_temp%]",
+          "max_temp": "[%key:common::config_flow::data::max_temp%]",
+          "window_method": "[%key:common::config_flow::data::window_method%]",
+          "hot_tolerance": "[%key:common::config_flow::data::hot_tolerance%]",
+          "cold_tolerance": "[%key:common::config_flow::data::cold_tolerance%]"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "data": {
+          "moving_avg_length": "Moving average length for Sensors",
+          "round_value": "Decimal round off display for Sensors",
+          "min_temp": "Min temperature to be displayed on Thermostat",
+          "max_temp": "Max temperature to be displayed in Thermostat",
+          "window_method": "Enable Windowing for Thermostat (To wait for tolerance values to hit before turning on/off)",
+          "hot_tolerance": "Hot tolerance for Thermostat",
+          "cold_tolerance": "Cold tolerance for Thermostat"
+        }
+      }
+    }
+  }
+}

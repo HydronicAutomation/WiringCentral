@@ -1,0 +1,69 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="{% static 'wiringcentralconfigurator_app/favicon.ico' %}">
+
+    <title>{% block title %} Wiring Configurator {% endblock title %}</title>
+
+    {% block stylesheet %}
+        <!-- Bootstrap core CSS -->
+        <link href="{% static 'wiringcentralconfigurator_app/dist/css/bootstrap.min.css' %}" rel="stylesheet">
+
+        <!-- Custom styles for this template -->
+        <!--    <link href="form-validation.css" rel="stylesheet">-->
+    {% endblock stylesheet %}
+
+</head>
+
+<body class="bg-light">
+
+<div class="container">
+
+    {% block message %}
+        {% if messages %}
+            <div class="row alert m-3" role="alert">
+                <div class="col-12">
+                    {% for message in messages %}
+                        {% if message.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                        <div class="alert alert-success alert-dismissible" role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                            {{ message }}
+                        </div>
+                        {% elif message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                        <div class="alert alert-danger alert-dismissible" role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                            {{ message }}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info alert-dismissible " role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                            {{ message }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endblock message %}
+
+    {% block content  %}
+
+    {% endblock content %}
+
+</div>
+
+{% block script %}
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="{% static 'wiringcentralconfigurator_app/dist/js/bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'wiringcentralconfigurator_app/jquery/jquery-3.5.1.js' %}"></script>
+    <script type="text/javascript" src="{% static 'wiringcentralconfigurator_app/dist/js/alert.js' %}"></script>
+{% endblock script %}
+</body>
+</html>

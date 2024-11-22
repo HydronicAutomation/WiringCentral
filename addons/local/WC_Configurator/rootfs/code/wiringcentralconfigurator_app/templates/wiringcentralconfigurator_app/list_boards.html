@@ -1,0 +1,60 @@
+{% extends 'wiringcentralconfigurator_app/base.html' %}
+
+{% block title %}board list{% endblock title %}
+
+{% block content %}
+    <div class="text-center m-5">
+        <div class="card">
+            <div class="card-header">
+                <h3>Board List</h3>
+            </div>
+            <div class="card-body">
+                {% if board_list %}
+
+                    {% for board in board_list %}
+                        <div class="row mt-0 mb-1 p-2 border-bottom">
+                            <div class="col-sm">
+                                <h5>{{ board }}</h5>
+                            </div>
+
+                            <div class="col-sm border-left mb-1">
+                                <a href="{% url 'configuration_thermostat_view' board %}" class="btn  btn-block btn-success text-white">Sensors</a>
+                            </div>
+
+
+                            <div class="col-sm border-left mb-1">
+                                <a href="{% url 'configuration_relay_view' board %}" class="btn  btn-block btn-info text-white">Relays</a>
+                            </div>
+
+                            {% comment %}<div class="col-sm border-left mb-1">
+                                <a href="{% url 'configuration_masterslave_view' board %}" class="btn  btn-block btn-danger text-white">Master/Slave</a>
+                            </div>{% endcomment %}
+
+                            <div class="col-sm border-left mb-1">
+                                <a href="{% url 'configuration_sensor_view' board %}" class="btn  btn-block btn-secondary text-white">Enable/Disable</a>
+                            </div>
+
+                            <div class="col-sm border-left mb-1">
+                                <a href="{% url 'configuration_options_view' board %}" class="btn  btn-block btn-danger text-white">Configuration</a>
+                            </div>
+                        </div>
+
+                    {% endfor %}
+
+                {% endif %}
+            </div>
+
+            <div class="card-footer border-top-0">
+                <div class="row">
+                    <div class="offset-10 col-2">
+                        <a href="{% url 'list_board_view' %}" class="float-right btn  btn-dark">Refresh</a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+
+{% endblock content %}

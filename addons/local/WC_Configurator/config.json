@@ -1,0 +1,34 @@
+{
+  "name": "WC Configurator",
+  "version": "58",
+  "slug": "wc-configurator",
+  "description": "Configure your WiringCentral device",
+  "url": "https://github.com/hassio-addons/addon-sqlite-web/tree/master/README.md",
+  "webui": "[PROTO:ssl]://[HOST]:[PORT:6020]",
+  "ingress": true,
+  "ingress_port": 1378,
+  "panel_icon": "mdi:store-cog",
+  "startup": "services",
+  "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
+  "boot": "auto",
+  "auth_api": true,
+  "homeassistant_api": true,
+  "hassio_api": true,
+  "hassio_role": "default",
+  "ports": {
+    "80/tcp": 6020
+  },
+  "ports_description": {
+    "80/tcp": "WC Configurator Web interface (Not required for Ingress)"
+  },
+  "map": ["ssl", "config:rw"],
+  "options": {
+    "full_access": true,
+    "navigation": "list_board_view"
+  },
+  "schema": {
+    "log_level": "list(trace|debug|info|notice|warning|error|fatal)?",
+    "navigation": "str",
+    "full_access": "bool"
+  }
+}

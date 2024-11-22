@@ -1,0 +1,279 @@
+{% extends 'wiringcentralconfigurator_app/base.html' %}
+{% load static %}
+{% block content %}
+
+    <div class="py-1 text-center">
+        <p class="lead"></p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 order-md-2 mb-4">
+            <h4 class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">{{ entity_name }}</span>
+                <span class="badge badge-secondary badge-pill" id="board_details_count">0</span>
+            </h4>
+            <ul class="list-group mb-3" id="board_details">
+
+            </ul>
+
+            <ul class="list-group mb-3" id="espnow_details">
+
+            </ul>
+
+            <div class="card p-2">
+                <div class="row">
+                    <!-- <input type="text" class="form-control" placeholder="Promo code"> -->
+                    <div class="col-10">
+                        <button type="button" class="btn btn-secondary" onclick="update_board_details();">Refresh</button>
+                    </div>
+                    <div class="col-2">
+                        <a href="{% url 'list_board_view' %}" type="button" class="float-right btn btn-primary" >Back</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-md-8 order-md-1">
+            <h4 class="mb-3">WiringCentral Sensor Configurator</h4>
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <h5>{% if thermostatID %} {{ thermostatID|capfirst }} {% endif %}</h5>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <h5>Sensor Type</h5>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <h5>Feed</h5>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <h5>Multiplier/</h5>
+                        <h5>Summer</h5>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_1 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_1 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_1 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_1 }} {{ form.summer_1 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_2 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_2 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_2 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_2 }} {{ form.summer_2 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_3 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_3 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_3 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_3 }} {{ form.summer_3 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_4 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_4 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_4 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_4 }} {{ form.summer_4 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_5 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_5 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_5 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_5 }} {{ form.summer_5 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_6 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_6 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_6 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_6 }} {{ form.summer_6 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_7 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_7 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_7 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_7 }} {{ form.summer_7 }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        {{ form.name_8 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.type_8 }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.feed_8 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        {{ form.multiplier_8 }} {{ form.summer_8 }}
+                    </div>
+                </div>
+
+                <hr class="mb-4">
+                <button class="btn btn-primary btn-lg btn-block" type="submit">Save Configuration</button>
+                <br>
+                <br>
+            </form>
+        </div>
+    </div>
+
+{% endblock content %}
+
+{% block script %}
+
+    {{ block.super }}
+
+    <script type="text/javascript">
+
+        let ntc_option = "";
+
+        for(let i= 1; i < 9; i++){
+            ntc_option += "<option value=" + i + ">"+ i + "</option>"
+        }
+
+        let dsq8b20_option = "<option value=''></option>";
+        let shtc3_option = "<option value=''></option>";
+
+        function set_options() {
+
+            for (let i = 0; i <= 8; i++) {
+                $('#id_type_' + i).change(function () {
+                    {#console.log($(this).children("option:selected").val());#}
+
+                    if ($(this).children("option:selected").val() === 'NTC') {
+                        $('#id_feed_' + i).parent().html("<select class='custom-select d-block w-100' name=feed_" + i + " id=id_feed_" + i + " required=''>" + ntc_option + "</select>");
+
+                    } else if ($(this).children("option:selected").val() === 'DS18B20') {
+                        $('#id_feed_' + i).parent().html("<select class='custom-select d-block w-100' name=feed_" + i + " id=id_feed_" + i + " required=''>" + dsq8b20_option + "</select>");
+                    } else if ($(this).children("option:selected").val() === 'SHTC3-TEMP') {
+                        $('#id_feed_' + i).parent().html("<select class='custom-select d-block w-100' name=feed_" + i + " id=id_feed_" + i + " required=''>" + shtc3_option + "</select>");
+                    } else {
+                        $('#id_feed_' + i).parent().html(
+                            "<input type='text' class='form-control' name=feed_" + i + " id=id_feed_" + i + " required=''>");
+                    }
+                });
+            }
+
+        }
+    </script>
+
+    <script type="text/javascript">
+        function update_board_details(){
+            $.ajax({
+                url: '{% url 'configuration_ajax_view' %}',
+                type: 'GET',
+                data: {board: '{{ thermostatID }}'},
+                success: function (datas) {
+                    console.log(datas);
+                    var board_details = '';
+                    var espnow_details = '';
+                    if (datas.hasOwnProperty('board_details_count')) {
+                        $('#board_details_count').html(datas.board_details_count);
+
+                        if (datas.hasOwnProperty('board_details')) {
+                            {#console.log(datas.board_details);#}
+                            dsq8b20_option = "";
+                            shtc3_option = "";
+                            for (let i = 0; i < datas.board_details_count; i++) {
+                                if(datas.board_details[i]['TYPE'] === 'SHTC3-TEMP'){
+                                    shtc3_option += "<option value="+ datas.board_details[i]['SENSOR'] + ">"+ datas.board_details[i]['SENSOR'] + "</option>";
+                                }else{
+                                    dsq8b20_option += "<option value="+ datas.board_details[i]['SENSOR'] + ">"+ datas.board_details[i]['SENSOR'] + "</option>";
+                                }
+
+                                if(datas.board_details[i]['BOARD'] === 'ESPNOW'){
+                                    espnow_details += '<li class="list-group-item d-flex justify-content-between lh-condensed">\n' +
+                                    '<div>\n' +
+                                    '<h6 class="my-0">' + datas.board_details[i]['TYPE'] + '</h6>\n' +
+                                    '<small class="text-muted">Serial: ' + datas.board_details[i]['SENSOR'] + '</small>\n' +
+                                    '</div>\n' +
+                                    '<span class="text-muted">ESPNOW' + '</span>\n' +
+                                    '</li>';
+                                }else{
+                                   board_details += '<li class="list-group-item d-flex justify-content-between lh-condensed">\n' +
+                                    '<div>\n' +
+                                    '<h6 class="my-0">' + datas.board_details[i]['TYPE'] + '</h6>\n' +
+                                    '<small class="text-muted">Serial: ' + datas.board_details[i]['SENSOR'] + '</small>\n' +
+                                    '</div>\n' +
+                                    '<span class="text-muted">BUS ' + datas.board_details[i]['BUS'] + '</span>\n' +
+                                    '</li>'; 
+                                }
+                                
+                            }
+                            $('#board_details').html(board_details);
+                            $('#espnow_details').html(espnow_details);
+                            set_options();
+                        }
+                    }
+                }
+            });
+        }
+
+        update_board_details();
+    </script>
+{% endblock script %}

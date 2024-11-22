@@ -1,0 +1,5 @@
+WC-123456:
+- object_id: WC-123456-1
+  master_object_id:
+- object_id: WC-123456-2
+  master_object_id: WC-123456-1

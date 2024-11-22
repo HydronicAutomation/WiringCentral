@@ -1,0 +1,8 @@
+---
+hello_world:
+  module: hello
+  class: HelloWorld
+
+wiring_central:
+  module: wiring_central
+  class: WiringCentral

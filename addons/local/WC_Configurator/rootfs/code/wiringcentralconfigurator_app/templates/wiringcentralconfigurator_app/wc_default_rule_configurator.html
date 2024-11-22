@@ -1,0 +1,128 @@
+{% extends 'wiringcentralconfigurator_app/base.html' %}
+{% load static %}
+
+{% block stylesheet %}
+    {{ block.super }}
+        <link href="{% static 'wiringcentralconfigurator_app/font-awesome-4.7.0/css/font-awesome.css' %}" rel="stylesheet">
+        <link href="{% static 'wiringcentralconfigurator_app/dist/css/tempusdominus-bootstrap-4.min.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+    <div class="py-1 text-center">
+        <p class="lead"></p>
+    </div>
+
+    <div class="row mb-4" >
+        <div class="col-md-12 order-md-1">
+            <div class="card p-2">
+                <div class="row">
+                    <div class="col-10">
+                        <h4 class="mt-1">WiringCentral Default Schedules</h4>
+                    </div>
+                    <div class="col-1">
+                        <button class="float-right btn btn-success" id="id_add_new_btn">Add New</button>
+                    </div>
+                    <div class="col-1">
+                        <a href="{% url 'configuration_options_view' thermostatID %}" type="button" class="float-right btn btn-primary" >Back</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12 order-md-1">
+{#            <h4 class="mb-3">WiringCentral MasterSlave Configurator</h4>#}
+            <div class="row">
+                <div class="col col-md-2">
+                    StartTime
+                </div>
+                <div class="col col-md-2">
+                    EndTime
+                </div>
+                <div class="col col-md-2">
+                    Target Temperature
+                </div>
+                <div class="col col-md-3">
+                    Day of Week
+                </div>
+                <div class="col col-md-2">
+                    Mode
+                </div>
+                <div class="col col-md-1">
+                    Delete
+                </div>
+
+            </div>
+            <hr class="mb-4">
+
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+                {{ form.management_form }}
+{#                <table>#}
+                    {% for iform in form %}
+                        <div id="id_row-{{ forloop.counter0 }}">
+
+                        <div class="row">
+                            <div class="col col-md-2">
+                                {{ iform.starttime }}
+                            </div>
+                            <div class="col col-md-2">
+                                {{ iform.endtime }}
+                            </div>
+                            <div class="col col-md-2">
+                                {{ iform.target_temperature }}
+                            </div>
+                            <div class="col col-md-3">
+                                {{ iform.day_of_week }}
+                            </div>
+                            <div class="col col-md-2">
+                                {{ iform.hvac_mode }}
+                            </div>
+                            <div class="col col-md-1">
+                                {{ iform.DELETE }}
+                            </div>
+
+                        </div>
+
+                        <hr class="mb-4">
+                        </div>
+
+
+                    {% endfor %}
+{#                </table>#}
+{#                <table>#}
+{#                    {{ form }}#}
+{#                </table>#}
+                <button class="btn btn-primary btn-lg btn-block" type="submit">Save and Continue</button>
+            </form>
+        </div>
+    </div>
+
+{% endblock content %}
+
+{% block script %}
+
+    {{ block.super }}
+        <script type="text/javascript" src="{% static 'wiringcentralconfigurator_app/dist/js/moment.min.js' %}"></script>
+        <script type="text/javascript" src="{% static 'wiringcentralconfigurator_app/dist/js/tempusdominus-bootstrap-4.min.js' %}"></script>
+
+    <script>
+        var totalForms = $('#id_form-TOTAL_FORMS').val();
+        console.log("Total forms ", totalForms);
+        $(`#id_form-${totalForms-1}-DELETE`).prop('checked', true);
+
+        $(`#id_row-${totalForms-1}`).hide();
+
+
+        $('#id_add_new_btn').click(function (){
+            $(`#id_row-${totalForms-1}`).show();
+            $(`#id_form-${totalForms-1}-DELETE`).prop('checked', false);
+            $('#id_add_new_btn').hide();
+        });
+
+
+    </script>
+{% endblock script %}

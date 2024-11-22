@@ -1,0 +1,12 @@
+thermostat1: '[{"type": "NTC", "feed": "1", "enabled": true}, {"type": "NTC", "feed":
+  "2", "enabled": true}, {"type": "NTC", "feed": "3", "enabled": true}, {"type": "NTC",
+  "feed": "4", "enabled": true}, {"type": "NTC", "feed": "5", "enabled": true}, {"type":
+  "NTC", "feed": "6", "enabled": true}, {"type": "NTC", "feed": "7", "enabled": true},
+  {"type": "NTC", "feed": "8", "enabled": true}, {"type": "DS18B20", "feed": "122345",
+  "enabled": true}]'
+thermostat: '[{"type": "NTC", "feed": "1", "enabled": true}, {"type": "NTC", "feed":
+  "2", "enabled": true}, {"type": "NTC", "feed": "3", "enabled": true}, {"type": "NTC",
+  "feed": "4", "enabled": true}, {"type": "NTC", "feed": "5", "enabled": true}, {"type":
+  "NTC", "feed": "6", "enabled": true}, {"type": "NTC", "feed": "7", "enabled": true},
+  {"type": "NTC", "feed": "8", "enabled": true}, {"type": "DS18B20", "feed": "123456",
+  "enabled": true}]'

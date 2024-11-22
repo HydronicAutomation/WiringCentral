@@ -1,0 +1,25 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: Wiringcentral Web
+# Runs WiringCentral Web
+# ==============================================================================
+declare -a options
+
+#options+=(-H 0.0.0.0)
+#options+=(--no-browser)
+#options+=(-x "/config/$(bashio::config 'database_path')")
+
+#if bashio::config.true 'read_only'; then
+#  options+=(-r)
+#fi
+
+bashio::log.info 'Starting Django Web...'
+
+export ingress_entry=$(bashio::addon.ingress_entry)
+export navigation=$(bashio::config 'navigation')
+export full_access=$(bashio::config 'full_access')
+bashio::log.info $ingress_entry
+bashio::log.info $SUPERVISOR_TOKEN
+bashio::log.info $navigation
+bashio::log.info $full_access
+exec python3 /code/manage.py runserver 0.0.0.0:8080

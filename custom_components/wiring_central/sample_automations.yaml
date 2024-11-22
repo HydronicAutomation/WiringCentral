@@ -1,0 +1,91 @@
+- id: WiringCental:Default:1583982662310
+  alias: WiringCental:Default on
+  description: WiringCental:Default
+  trigger:
+  - at: '22:40:00'
+    platform: time
+  condition:
+  - after: '21:40:00'
+    before: '22:53:00'
+    condition: time
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  action:
+  - data:
+      entity_id: climate.wiringcentral1
+      target_temp_high: 30
+      target_temp_low: 20
+    service: climate.set_temperature
+  - data:
+      entity_id: climate.wiringcentral1
+      hvac_mode: heat_cool
+    service: climate.set_hvac_mode
+- id: WiringCental:Default:1583982662311
+  alias: WiringCental:Default off
+  description: WiringCental:Default
+  trigger:
+  - at: '22:40:00'
+    platform: time
+  condition:
+  - after: '21:40:00'
+    before: '22:53:00'
+    condition: time
+    weekday:
+    - sat
+    - sun
+  action:
+  - data:
+      entity_id: climate.wiringcentral1
+      target_temp_high: 30
+      target_temp_low: 20
+    service: climate.set_temperature
+  - data:
+      entity_id: climate.wiringcentral1
+    service: climate.turn_off
+- id: WiringCental:Custom:1583982662314
+  alias: WiringCental:Custom on
+  description: WiringCental:Custom
+  trigger:
+  - at: '22:40:00'
+    platform: time
+  condition:
+  - after: '21:40:00'
+    before: '22:53:00'
+    condition: time
+    weekday:
+    - mon
+  action:
+  - data:
+      entity_id: climate.wiringcentral1
+      target_temp_high: 30
+      target_temp_low: 20
+    service: climate.set_temperature
+  - data:
+      entity_id: climate.wiringcentral1
+      hvac_mode: heat_cool
+    service: climate.set_hvac_mode
+- id: WiringCental:Custom:1583982662312
+  alias: WiringCental:Custom off
+  description: WiringCental:Custom
+  trigger:
+  - at: '22:40:00'
+    platform: time
+  condition:
+  - after: '21:40:00'
+    before: '22:53:00'
+    condition: time
+    weekday:
+    - sat
+  action:
+  - data:
+      entity_id: climate.wiringcentral1
+      target_temp_high: 30
+      target_temp_low: 20
+    service: climate.set_temperature
+  - data:
+      entity_id: climate.wiringcentral1
+    service: climate.turn_off

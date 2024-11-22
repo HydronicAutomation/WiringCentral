@@ -1,0 +1,43 @@
+{
+  "config": {
+    "error": {
+      "min_max_error": "Max temperature should be greater than the min temperature!",
+      "exist_error": "Integration already added!"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "step": {
+      "user": {
+        "title": "Wiring Central",
+        "description": "Integration configuration for Wiring Central",
+        "data": {
+          "moving_avg_length": "Moving average length for Sensors",
+          "round_value": "Decimal round off display for Sensors",
+          "min_temp": "Min temperature to be displayed on Thermostat",
+          "max_temp": "Max temperature to be displayed in Thermostat",
+          "window_method": "Enable Windowing for Thermostat (To wait for tolerance values to hit before turning on/off)",
+          "hot_tolerance": "Hot tolerance for Thermostat",
+          "cold_tolerance": "Cold tolerance for Thermostat"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "Wiring Central",
+        "description": "Integration configuration for Wiring Central",
+        "data": {
+          "moving_avg_length": "Moving average length for Sensors",
+          "round_value": "Decimal round off display for Sensors",
+          "min_temp": "Min temperature to be displayed on Thermostat",
+          "max_temp": "Max temperature to be displayed in Thermostat",
+          "window_method": "Enable Windowing for Thermostat (To wait for tolerance values to hit before turning on/off)",
+          "hot_tolerance": "Hot tolerance for Thermostat",
+          "cold_tolerance": "Cold tolerance for Thermostat"
+        }
+      }
+    }
+  }
+}

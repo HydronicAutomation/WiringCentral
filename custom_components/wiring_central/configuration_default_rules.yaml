@@ -1,0 +1,7 @@
+exclude: '["climate.wc_123456_1"]'
+default_rules: '[{"ruleid_default": "WiringCentral:Default_Cloned:252:1647777225",
+  "starttime_default": "22:55", "endtime_default": "23:50", "target_temperature_default":
+  10.2, "day_of_week_default": "Sat - Sun", "hvac_mode_default": "Cool"}, {"ruleid_default":
+  "WiringCentral:Default_Cloned:83:1647777225", "starttime_default": "17:23", "endtime_default":
+  "17:55", "target_temperature_default": 45.0, "day_of_week_default": "Mon - Fri",
+  "hvac_mode_default": "Heat"}]'
