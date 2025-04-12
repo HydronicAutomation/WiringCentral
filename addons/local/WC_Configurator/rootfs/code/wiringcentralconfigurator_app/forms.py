@@ -192,40 +192,50 @@ class RelayConfigurationForm(forms.Form):
                 self.fields[key].widget.attrs.update({'class': 'custom-select d-block w-100'})
             if key[0:4] == 'feed':
                 self.fields[key].widget.attrs.update({'class': 'form-control'})
+            if key[0:6] == 'enable':
+                self.fields[key].widget.attrs.update({'class': 'form-check-input'})
 
     choice = [("", ""), ("BUILTIN", "BUILTIN"), ("RL-BOARD", "RL-BOARD")]
 
     name_1 = forms.CharField(required=True)
     type_1 = forms.ChoiceField(choices=choice, required=True)
     feed_1 = forms.CharField(required=True)
+    enable_1 = forms.BooleanField(initial=True, required=False)
 
     name_2 = forms.CharField(required=True)
     type_2 = forms.ChoiceField(choices=choice, required=True)
     feed_2 = forms.CharField(required=True)
+    enable_2 = forms.BooleanField(initial=True, required=False)
 
     name_3 = forms.CharField(required=True)
     type_3 = forms.ChoiceField(choices=choice, required=True)
     feed_3 = forms.CharField(required=True)
+    enable_3 = forms.BooleanField(initial=True, required=False)
 
     name_4 = forms.CharField(required=True)
     type_4 = forms.ChoiceField(choices=choice, required=True)
     feed_4 = forms.CharField(required=True)
+    enable_4 = forms.BooleanField(initial=True, required=False)
 
     name_5 = forms.CharField(required=True)
     type_5 = forms.ChoiceField(choices=choice, required=True)
     feed_5 = forms.CharField(required=True)
+    enable_5 = forms.BooleanField(initial=True, required=False)
 
     name_6 = forms.CharField(required=True)
     type_6 = forms.ChoiceField(choices=choice, required=True)
     feed_6 = forms.CharField(required=True)
+    enable_6 = forms.BooleanField(initial=True, required=False)
 
     name_7 = forms.CharField(required=True)
     type_7 = forms.ChoiceField(choices=choice, required=True)
     feed_7 = forms.CharField(required=True)
+    enable_7 = forms.BooleanField(initial=True, required=False)
 
     name_8 = forms.CharField(required=True)
     type_8 = forms.ChoiceField(choices=choice, required=True)
     feed_8 = forms.CharField(required=True)
+    enable_8 = forms.BooleanField(initial=True, required=False)
 
 
 class SensorConfigurationForm(forms.Form):
@@ -240,4 +250,20 @@ class SensorConfigurationForm(forms.Form):
     ntc_6 = forms.BooleanField(initial=True, required=False)
     ntc_7 = forms.BooleanField(initial=True, required=False)
     ntc_8 = forms.BooleanField(initial=True, required=False)
+
+
+"""
+  enable_cooler_heater_control: 1
+  enable_transformer_control: 1
+
+"""
+
+class ConfigurationBoardStateManagerForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    enable_cooler_heater_control = forms.BooleanField(initial=False, required=False)
+    enable_transformer_control = forms.BooleanField(initial=False, required=False)
+
+
 

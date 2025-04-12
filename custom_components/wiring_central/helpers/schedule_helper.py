@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import pprint
@@ -14,10 +15,15 @@ class ScheduleService:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.schedule_filename = os.path.join(dir_path, 'schedules.yaml')
         self.schedule_defaults_filename = os.path.join(dir_path, 'schedule_defaults.yaml')
-        self.data_schedule_defaults = self.read_schedule_defaults_from_file()
+        self.data_schedule_defaults = {"exclude": [], "default_rules": []}
+        self.data = {}
+        self.loop = asyncio.get_running_loop()
+
+    async def init(self):
+        await self.loop.run_in_executor(None, self.read_schedule_defaults_from_file)
+        await self.loop.run_in_executor(None, self.read_schedules_from_file)
         pprint.pp(self.data_schedule_defaults)
-        self.data = self.read_schedules_from_file()
-        # self.topics = {}
+        pprint.pp(self.data)
 
     def add_service_data(self, entity_id, data):
         _LOGGER.info(f"add_service_data for {entity_id}")
@@ -80,7 +86,8 @@ class ScheduleService:
     def read_schedules_from_file(self):
         if not os.path.isfile(self.schedule_filename):
             return {}
-        return load_yaml(self.schedule_filename)
+        data = load_yaml(self.schedule_filename)
+        self.data = data
 
     def read_schedule_defaults_from_file(self):
         data = {"exclude": [], "default_rules": []}
@@ -88,7 +95,8 @@ class ScheduleService:
             return data
         data = load_yaml(self.schedule_defaults_filename)
         data = {"exclude": data.get("exclude", []) or [], "default_rules": data.get("default_rules", []) or []}
-        return data
+        self.data_schedule_defaults = data
+
     # def push_service_data(self, hass, entity_id, schedule_data):
     #     _LOGGER.info(f"get_service_data for {entity_id}")
     #     print("push_service_data schedule_data:", schedule_data)
@@ -98,3 +106,6 @@ class ScheduleService:
             return
         self.data_schedule_defaults["default_rules"] = event_data
         self.save_default_rules_to_file()
+
+    def async_default_rule_configuration(self, event_data):
+        self.loop.run_in_executor(None, self.save_defaultrule_configuration, event_data)

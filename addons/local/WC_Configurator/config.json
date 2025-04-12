@@ -1,6 +1,6 @@
 {
   "name": "WC Configurator",
-  "version": "58",
+  "version": "60",
   "slug": "wc-configurator",
   "description": "Configure your WiringCentral device",
   "url": "https://github.com/hassio-addons/addon-sqlite-web/tree/master/README.md",

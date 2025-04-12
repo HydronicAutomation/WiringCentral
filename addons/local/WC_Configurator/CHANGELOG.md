@@ -1,4 +1,13 @@
 # Changelog
+## 60
+
+- Added Relay enable disable support
+
+## 59
+
+- Updated API view to support synchronous file handling which is broken by HA on 2025.1 release
+- Added State management for managing the heater/cooler and transformer/pump relays
+
 ## 58
 
 - Added support for Multiplier and Summer for sensors on thermostat.

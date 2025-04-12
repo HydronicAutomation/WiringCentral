@@ -6,21 +6,19 @@ import random
 import time
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Optional, Dict, Any, List, Mapping
+from typing import Optional, Any, List, Mapping
 
 from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import (
-    HVAC_MODE_HEAT, SUPPORT_TARGET_TEMPERATURE, ATTR_HVAC_MODE,
-    DOMAIN as CLIMATE_DOMAIN, SERVICE_SET_TEMPERATURE,
-    SERVICE_SET_HVAC_MODE, HVAC_MODE_COOL, HVAC_MODE_OFF)
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import (ATTR_HVAC_MODE,
+                                                    DOMAIN as CLIMATE_DOMAIN, SERVICE_SET_TEMPERATURE,
+                                                    SERVICE_SET_HVAC_MODE, HVACMode, ClimateEntityFeature)
 from homeassistant.const import (
-    ATTR_TEMPERATURE, CONF_USERNAME, CONF_PASSWORD, TEMP_CELSIUS, CONF_ALIAS, SERVICE_TURN_OFF, ATTR_TIME, WEEKDAYS,
-    CONF_CONDITION, CONF_AFTER, CONF_BEFORE, CONF_WEEKDAY, ATTR_SERVICE, SERVICE_TURN_ON,
-    ATTR_ENTITY_ID, STATE_ON, CONF_AT, ATTR_STATE)
-import homeassistant.helpers.config_validation as cv
+    ATTR_TEMPERATURE,  CONF_ALIAS, SERVICE_TURN_OFF, ATTR_TIME, WEEKDAYS,
+    CONF_CONDITION, CONF_WEEKDAY, ATTR_SERVICE, SERVICE_TURN_ON,
+    ATTR_ENTITY_ID, STATE_ON, CONF_AT, ATTR_STATE, UnitOfTemperature)
 import json
 
 from homeassistant.core import HomeAssistant
@@ -33,9 +31,9 @@ from homeassistant.util import Throttle
 from homeassistant.util.yaml import load_yaml, dump
 
 from .api_helper import WCAPIClimateStatusView, WCAPIClimateEntitiesView, WCAPIClimateConfigurationView, \
-    WCAPIMasterSlaveConfigurationView, WCAPIDefaultRuleConfigurationView
+    WCAPIMasterSlaveConfigurationView, WCAPIDefaultRuleConfigurationView, WCAPIBoardStateConfigurationView
 from .configurator import ConfiguratorHelperThermostat, ConfiguratorHelperRelay, ConfiguratorHelperMasterSlave, \
-    ConfiguratorHelperDefaultRule
+    ConfiguratorHelperDefaultRule, ConfiguratorHelperBoard
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +42,7 @@ from .const import DOMAIN, MIN_TEMP, MAX_TEMP, MOVING_AVERAGE_LENGTH, ROUND_VALU
     ATTR_HOT_TOLERANCE, ATTR_COLD_TOLERANCE, ATTR_WINDOW_METHOD, HOT_TOLERANCE, COLD_TOLERANCE, WINDOW_METHOD_ENABLE
 from homeassistant.components.automation import DOMAIN as DOMAIN_AUTOMATION
 from homeassistant.const import SERVICE_RELOAD, CONF_ID
+
 from .helpers.schedule_helper import ScheduleService
 from .helpers.masterslave_helper import MasterSlaveService
 
@@ -62,7 +61,7 @@ AWAY = 0
 FIXED_TEMP = 128
 temp1 = 25
 
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
+SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE
 
 # List of integration names (string) your integration depends upon.
 DEPENDENCIES = ["mqtt"]
@@ -91,9 +90,167 @@ ATTR_WC_DAY_OF_WEEK_CUSTOM = 'day_of_week_custom'
 ATTR_WC_HVAC_MODE_CUSTOM = 'hvac_mode_custom'
 
 
-def check_replace_temerature_sensor_from_wcConfigurator(thermostatConfigurator: ConfiguratorHelperThermostat,
+
+class BoardStateManager:
+    """Manages the state of all thermostats and controls relays accordingly."""
+
+    def __init__(self, hass):
+        self.hass = hass
+        self.thermostat_states = {}  # Dictionary to track thermostat states
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.boards_filename = os.path.join(dir_path, 'configuration_boards.yaml')
+        self.loop = asyncio.get_running_loop()
+        self.configurator = ConfiguratorHelperBoard()
+        self.settings = {}
+
+    async def init(self):
+        # self.settings = await self.async_read_boards_configuration_from_file()
+        self.settings = await self.loop.run_in_executor(None, self.configurator.read_boards_configuration_from_file)
+        if self.settings is None:
+            self.settings = {}
+        return self.settings
+        # self.settings - {'WC-123456': {'enable_cooler_heater_control': 1, 'enable_transformer_control': 1}}
+
+    def update_thermostat_status(self, board_id, entity_id, status):
+        """
+            Update the state of a thermostat and evaluate relay control.
+
+            Args:
+                board_id (str): The ID of the thermostat's board.
+                entity_id (str): The ID of the thermostat entity.
+                status (str): The new status of the thermostat.  - Cooler On, Heater On, Off
+
+            thermostat_states = {
+                "board1_id": { "thermostats": [
+                    {
+                        "entity_id": "climate.entity_id",
+                        "status": "Heater On"
+                    }
+                ], "heater_relay": "Off", "cooler_relay": "Off", "transformer_relay": "Off" },
+                "board2_id": { "thermostats": [
+                    {
+                        "entity_id": "climate.entity_id",
+                        "status": "Cooler On"
+                    }
+                ], "heater_relay": "Off", "cooler_relay": "Off", "transformer_relay": "Off" }
+            }
+
+        """
+
+        if board_id is None or entity_id is None or status is None:
+            _LOGGER.error("Invalid arguments for update_thermostat_status: board_id={}, entity_id={}, status={}".format(board_id, entity_id, status))
+            return
+
+        if board_id not in self.thermostat_states:
+            self.thermostat_states[board_id] = {"thermostats": [],
+                                                "heater_relay": "Off",
+                                                "cooler_relay": "Off",
+                                                "transformer_relay": "Off",
+                                                "pump_relay": "Off",
+                                                "update_time": time.time()}
+
+        if entity_id not in [thermostat["entity_id"] for thermostat in self.thermostat_states[board_id]["thermostats"]]:
+            self.thermostat_states[board_id]["thermostats"].append({"entity_id": entity_id, "status": status})
+
+        # Update the thermostat state
+        for thermostat in self.thermostat_states[board_id]["thermostats"]:
+            if thermostat["entity_id"] == entity_id:
+                thermostat["status"] = status
+                break
+
+        if time.time() - self.thermostat_states[board_id]["update_time"] > 10:
+            if  self.settings.get(board_id) is not None and json.loads(self.settings[board_id]).get("enable_cooler_heater_control") is not None:
+                self.thermostat_states[board_id]["update_time"] = time.time()
+                enable_cooler_heater_control = json.loads(self.settings[board_id]).get("enable_cooler_heater_control", False)
+                enable_transformer_control = json.loads(self.settings[board_id]).get("enable_transformer_control", False)
+                self.evaluate_relay_state(board_id, enable_cooler_heater_control, enable_transformer_control)
+            else:
+                _LOGGER.error("No Heater Cooler Relay settings found for board_id: {}".format(board_id))
+                return
+
+    def evaluate_relay_state(self, board_id, enable_cooler_heater_control, enable_transformer_control):
+        # print("evaluate_relay_state for board_id", board_id)
+        # print("thermostat_states", self.thermostat_states)
+        """Check all thermostats and control relays accordingly."""
+        heater_entity_id = ("_".join(self.thermostat_states[board_id]["thermostats"][0]["entity_id"].split("_")[:-1]) + "_10").replace("climate", "switch")
+        cooler_entity_id = ("_".join(self.thermostat_states[board_id]["thermostats"][0]["entity_id"].split("_")[:-1]) + "_9").replace("climate", "switch")
+        transformer_entity_id = ("_".join(self.thermostat_states[board_id]["thermostats"][0]["entity_id"].split("_")[:-1]) + "_11").replace("climate", "switch")
+        pump_entity_id = ("_".join(self.thermostat_states[board_id]["thermostats"][0]["entity_id"].split("_")[:-1]) + "_12").replace("climate", "switch")
+        # print("heater_entity_id", heater_entity_id)
+        # print("cooler_entity_id", cooler_entity_id)
+        # print("transformer_entity_id", transformer_entity_id)
+        # print("pump_entity_id", pump_entity_id)
+        # print("status", self.thermostat_states[board_id]["thermostats"][0]["status"])
+
+        # check if any of the thermostats are having Heater On status
+        if any(thermostat["status"] == "Heater On" for thermostat in self.thermostat_states[board_id]["thermostats"]):
+            if enable_cooler_heater_control:
+                self.thermostat_states[board_id]["heater_relay"] = "On"
+                self.thermostat_states[board_id]["cooler_relay"] = "Off"
+                self.hass.create_task(
+                    self.hass.services.async_call("switch", "turn_on", {"entity_id": heater_entity_id}))
+                self.hass.create_task(
+                    self.hass.services.async_call("switch", "turn_off", {"entity_id": cooler_entity_id}))
+
+            if enable_transformer_control:
+                self.thermostat_states[board_id]["transformer_relay"] = "On"
+                self.thermostat_states[board_id]["pump_relay"] = "On"
+                self.hass.create_task(self.hass.services.async_call("switch", "turn_on", {"entity_id": transformer_entity_id}))
+                self.hass.create_task(self.hass.services.async_call("switch", "turn_on", {"entity_id": pump_entity_id}))
+            return
+        elif any(thermostat["status"] == "Cooler On" for thermostat in self.thermostat_states[board_id]["thermostats"]):
+            if enable_cooler_heater_control:
+                self.thermostat_states[board_id]["heater_relay"] = "Off"
+                self.thermostat_states[board_id]["cooler_relay"] = "On"
+                self.hass.create_task(
+                    self.hass.services.async_call("switch", "turn_off", {"entity_id": heater_entity_id}))
+                self.hass.create_task(
+                    self.hass.services.async_call("switch", "turn_on", {"entity_id": cooler_entity_id}))
+
+            if enable_transformer_control:
+                self.thermostat_states[board_id]["transformer_relay"] = "On"
+                self.thermostat_states[board_id]["pump_relay"] = "On"
+                self.hass.create_task(self.hass.services.async_call("switch", "turn_on", {"entity_id": transformer_entity_id}))
+                self.hass.create_task(self.hass.services.async_call("switch", "turn_on", {"entity_id": pump_entity_id}))
+            return
+        else:
+            if enable_cooler_heater_control:
+                self.thermostat_states[board_id]["heater_relay"] = "Off"
+                self.thermostat_states[board_id]["cooler_relay"] = "Off"
+                self.hass.create_task(
+                    self.hass.services.async_call("switch", "turn_off", {"entity_id": heater_entity_id}))
+                self.hass.create_task(
+                    self.hass.services.async_call("switch", "turn_off", {"entity_id": cooler_entity_id}))
+
+            if enable_transformer_control:
+                self.thermostat_states[board_id]["transformer_relay"] = "Off"
+                self.thermostat_states[board_id]["pump_relay"] = "Off"
+                self.hass.create_task(self.hass.services.async_call("switch", "turn_off", {"entity_id": transformer_entity_id}))
+                self.hass.create_task(self.hass.services.async_call("switch", "turn_off", {"entity_id": pump_entity_id}))
+            return
+
+    def save_thermostat_board_configuration(self, board, board_config):
+        self.configurator.save_thermostat_board_configuration(board, board_config)
+
+    def async_save_thermostat_board_configuration(self, board, board_config):
+        self.loop.run_in_executor(None, self.configurator.save_thermostat_board_configuration, board, board_config)
+
+    def async_read_boards_configuration_from_file(self):
+        return self.loop.run_in_executor(None, self.configurator.read_boards_configuration_from_file)
+
+    def get_board_configuration(self, board):
+        config =  self.configurator.get_thermostat_board_configuration(board)
+        return config
+    
+    def async_get_board_configuration(self, board):
+        return self.loop.run_in_executor(None, self.configurator.get_thermostat_board_configuration, board)
+
+
+async def check_replace_temerature_sensor_from_wcConfigurator(thermostatConfigurator: ConfiguratorHelperThermostat,
                                                         board_id, object_id):
-    config = thermostatConfigurator.get_thermostat_configuration(board_id)
+    loop = asyncio.get_event_loop()
+    config = await loop.run_in_executor(None, thermostatConfigurator.get_thermostat_configuration, board_id)
+    # config = thermostatConfigurator.get_thermostat_configuration(board_id)
     if config is not None:
         json_data = json.loads(config)
         for object in json_data:
@@ -117,24 +274,30 @@ def check_replace_temerature_sensor_from_wcConfigurator(thermostatConfigurator: 
     return None, None, 1, 0
 
 
-def check_replace_relay_from_wcConfigurator(relayConfigurator: ConfiguratorHelperRelay, board_id, object_id):
-    config = relayConfigurator.get_relay_configuration(board_id)
+async def check_replace_relay_from_wcConfigurator(relayConfigurator: ConfiguratorHelperRelay, board_id, object_id):
+    loop = asyncio.get_event_loop()
+    config = await loop.run_in_executor(None, relayConfigurator.get_relay_configuration, board_id)
+    # config = relayConfigurator.get_relay_configuration(board_id)
     if config is not None:
         json_data = json.loads(config)
         for object in json_data:
-            if object.get("name") == object_id and object.get("type") == SWITCH_TYPE_RELAY_BOARD:
-                feed = FEED = object.get("feed")
-                relay_board_id, switch_number = feed.rsplit("-", 1)
-                return SWITCH_TYPE_RELAY_BOARD, "wc/c/{BOARD}/crt/s/{FEED_ID}/{FEED_SW}".format(BOARD="RELAY",
-                                                                                                FEED_ID=relay_board_id,
-                                                                                                FEED_SW=switch_number)
-    return None, None
+            if object.get("name") == object_id:
+                if object.get("type") == SWITCH_TYPE_RELAY_BOARD:
+                    feed = object.get("feed")
+                    enabled = object.get("enable", True)
+                    relay_board_id, switch_number = feed.rsplit("-", 1)
+                    return SWITCH_TYPE_RELAY_BOARD, "wc/c/{BOARD}/crt/s/{FEED_ID}/{FEED_SW}".format(BOARD="RELAY",
+                                                                                                    FEED_ID=relay_board_id,
+                                                                                                    FEED_SW=switch_number), enabled
+                elif object.get("type") == SWITCH_TYPE_BUILTIN:
+                    return SWITCH_TYPE_BUILTIN, None, object.get("enable", True)
+    return None, None, True
 
 
-def check_and_configure_automation_masterslave(masterslaveConfigurator: ConfiguratorHelperMasterSlave, board_id):
-    masterslave_config = masterslaveConfigurator.get_thermostat_configuration(board=board_id)
-    if masterslave_config:
-        print(masterslave_config)
+# def check_and_configure_automation_masterslave(masterslaveConfigurator: ConfiguratorHelperMasterSlave, board_id):
+#     masterslave_config = masterslaveConfigurator.get_thermostat_configuration(board=board_id)
+#     if masterslave_config:
+#         print(masterslave_config)
 
 
 # def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -178,14 +341,20 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
     # scheduleCloner = ScheduleCloner(defaultRuleConfigurator=defaultRuleConfigurator)
     # scheduleService = ScheduleService(automation_helper=wiringcentralAutomation, schedule_cloner=scheduleCloner)
     scheduleService = ScheduleService()
+    await scheduleService.init()
     masterslaveService = MasterSlaveService()
+    await masterslaveService.init()
+    boardStateManager = BoardStateManager(hass=hass)
+    await boardStateManager.init()
 
     # Setup HTTP API views
     hass.http.register_view(WCAPIClimateStatusView)
     hass.http.register_view(WCAPIClimateEntitiesView)
-    hass.http.register_view(WCAPIClimateConfigurationView)
+    hass.http.register_view(WCAPIClimateConfigurationView(hass=hass))
     hass.http.register_view(WCAPIMasterSlaveConfigurationView(masterslaveService))
-    hass.http.register_view(WCAPIDefaultRuleConfigurationView(scheduleService))
+    hass.http.register_view(WCAPIDefaultRuleConfigurationView(hass, scheduleService))
+    hass.http.register_view(WCAPIBoardStateConfigurationView(hass, boardStateManager))
+
     # if discovery_info is None:
     #     return
 
@@ -203,7 +372,7 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
     # hass.services.register(DOMAIN, "set_state", add_device)
 
     @callback
-    def device_config_received(msg):
+    async def device_config_received(msg):
         """Handle new MQTT messages."""
         _LOGGER.info("climate_config_received %s", DOMAIN)
         print(msg.topic, msg.payload)
@@ -223,7 +392,7 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
             entity_data = json.loads(msg.payload)
 
             # Support for sensor change from the WC_configurator, with required mutiplier and summer support
-            sensor_type, current_temp_topic, temp_multipler, temp_summer = check_replace_temerature_sensor_from_wcConfigurator(
+            sensor_type, current_temp_topic, temp_multipler, temp_summer = await check_replace_temerature_sensor_from_wcConfigurator(
                 thermostatConfigurator, board_id, object_id)
             if sensor_type is not None:
                 entity_data['current_temperature_topic'] = current_temp_topic
@@ -234,14 +403,16 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
 
             entity_data['relay_type'] = None
             entity_data['relay_command_topic'] = None
-            relay_type, relay_topic = check_replace_relay_from_wcConfigurator(relayConfigurator, board_id, object_id)
-            if relay_type is not None:
+            relay_type, relay_topic, enabled = await check_replace_relay_from_wcConfigurator(relayConfigurator, board_id, object_id)
+            if relay_type is not None and relay_type == SWITCH_TYPE_RELAY_BOARD:
                 entity_data['relay_command_topic'] = relay_topic  # None if not configured or using Builtin
                 entity_data['relay_type'] = relay_type  # None if not configured or using Builtin
-            else:
+                entity_data['relay_enabled'] = enabled
+            elif relay_type is None or relay_type == SWITCH_TYPE_BUILTIN:
                 # Using buitin Relay
                 entity_data['relay_command_topic'] = entity_data.get('current_relay_control_topic')
                 entity_data['relay_type'] = SWITCH_TYPE_BUILTIN
+                entity_data['relay_enabled'] = enabled
             # print(object_id, entity_data['heating_element_command_topic'], entity_data['relay_type'])
 
             # Support for sensor change from the platform configuration of configuration.yaml
@@ -274,7 +445,9 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
             entity_data['board_id'] = board_id
 
             async_add_devices([EThermostat(
-                name, node_id, object_id, entity_data, scheduleService)], True)
+                name=name, node_id=node_id, object_id=object_id, data=entity_data,
+                schedule_service=scheduleService,
+                thermostat_state_manager=boardStateManager)], True)
         else:
             print("Thermostat already added! - {}".format(object_id))
 
@@ -369,17 +542,18 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
 class EThermostat(ClimateEntity):
     """Representation of a E-Thermostaat device."""
 
-    def __init__(self, name, node_id, object_id, data, scheduleService: ScheduleService):
+    def __init__(self, name, node_id, object_id, data, schedule_service: ScheduleService,
+                 thermostat_state_manager: BoardStateManager):
         """Initialize the thermostat."""
         _LOGGER.info(f"EThermostat adding : {object_id}")
         self._unique_id = object_id
         self._name = name
         self.node_id = node_id
         self.object_id = object_id
-        self.scheduleService = scheduleService
+        self.scheduleService = schedule_service
+        self.thermostatStateManager = thermostat_state_manager
 
         self._data = data
-        self.mqtt = None
         self.sensor_type = data.get('sensor_type', SENSOR_TYPE_NTC)
 
         self.current_temperature_topic = self._data['current_temperature_topic']
@@ -403,7 +577,7 @@ class EThermostat(ClimateEntity):
         self.heating_element_command_topic = self._data['heating_element_command_topic']
         self.relay_type = self._data['relay_type']
         self.relay_command_topic = self._data['relay_command_topic']
-        print(self.relay_type, self.heating_element_command_topic)
+        self.relay_enabled = self._data.get('relay_enabled', True)
         self.moving_avg_length = self._data[ATTR_MOVING_AVERAGE_LENGTH]
         self.round_value = self._data[ATTR_ROUND_VALUE]
         self.temp_multiplier = self._data['temp_multiplier']
@@ -411,7 +585,7 @@ class EThermostat(ClimateEntity):
         # self.service_topic = "elementz/command/{}/{}/schedule".format(node_id,object_id)
 
         # Internal variables
-        self._mode = HVAC_MODE_OFF
+        self._mode = HVACMode.OFF
         self._current_temperature = self._min_temp
         self._target_temperature = self._max_temp
         self._target_temp_low = self._min_temp
@@ -444,12 +618,11 @@ class EThermostat(ClimateEntity):
 
         if self.hass is not None:
             _LOGGER.info("susbcribing to mqtt %s", self._name)
-            self.mqtt = self.hass.components.mqtt
             # print("!!!!!!!!!!loop_subscribe!!!!!!!")
-            await self.mqtt.async_subscribe(self.current_temperature_topic, self._set_current_temperature_from_mqtt)
-            await self.mqtt.async_subscribe(self.mode_state_topic, self._set_mode_from_mqtt)
-            await self.mqtt.async_subscribe(self.target_temperature_state_topic, self._set_target_temperature_from_mqtt)
-            await self.mqtt.async_subscribe(self.service_state_topic, self._set_device_service_data_from_mqtt)
+            await mqtt.async_subscribe(self.hass, self.current_temperature_topic, self._set_current_temperature_from_mqtt)
+            await mqtt.async_subscribe(self.hass, self.mode_state_topic, self._set_mode_from_mqtt)
+            await mqtt.async_subscribe(self.hass, self.target_temperature_state_topic, self._set_target_temperature_from_mqtt)
+            await mqtt.async_subscribe(self.hass, self.service_state_topic, self._set_device_service_data_from_mqtt)
             print("!!!!!!!!!!loop_subscribed!!!!!!!")
 
             print(self.entity_id)
@@ -462,7 +635,7 @@ class EThermostat(ClimateEntity):
             # await self.async_thermostat_turn_on()
 
             # set initial mode to OFF on startup
-            self._mode = HVAC_MODE_OFF
+            self._mode = HVACMode.OFF
         return result
 
     def _set_device_service_data_from_mqtt(self, msg):
@@ -508,50 +681,52 @@ class EThermostat(ClimateEntity):
     def _set_current_temperature_and_refresh_heater(self, temperature_last_updated):
         temperature_last_updated = float(temperature_last_updated)
         # control heating/cooling according to the current state
-        updateFlag = False
-        if self._mode == HVAC_MODE_HEAT:
+        update_flag = False
+        if self._mode == HVACMode.HEAT:
             if time.time() - self.last_changed_millis > self.min_cycle_duration:
                 if self.window_method:
                     # Enter in window method for cycling t between T-C and T+H
                     if temperature_last_updated > self._target_temperature + self.hot_tolerance:
                         self.hass.add_job(self.async_heater_element_off)  # t > T + H - Turnoff heater
-                        updateFlag = True
+                        update_flag = True
                     elif temperature_last_updated < (self._target_temperature - self.cold_tolerance):
                         self.hass.add_job(self.async_heater_element_on)  # t < (T - C) - Turn on heater
-                        updateFlag = True
+                        update_flag = True
                     else:
-                        updateFlag = True  # No change if T-C < t < T + H
+                        update_flag = True  # No change if T-C < t < T + H
                 else:
                     # Enter if not window method, normal behaviour
                     if temperature_last_updated > self._target_temperature + self.hot_tolerance:
                         self.hass.add_job(self.async_heater_element_off)  # Turn off heater at t  > T + H
-                        updateFlag = True
+                        update_flag = True
                     else:
                         self.hass.add_job(self.async_heater_element_on)
-                        updateFlag = True
-        elif self._mode == HVAC_MODE_COOL:
+                        update_flag = True
+        elif self._mode == HVACMode.COOL:
             if time.time() - self.last_changed_millis > self.min_cycle_duration:
                 if self.window_method:
                     if temperature_last_updated < (self._target_temperature - self.cold_tolerance):
                         self.hass.add_job(self.async_cooler_element_off)  # Turn off cooler at t < T - C
-                        updateFlag = True
+                        update_flag = True
                     elif temperature_last_updated > (self._target_temperature + self.hot_tolerance):
                         self.hass.add_job(self.async_cooler_element_on)  # Turn on cooler when t > T + H
-                        updateFlag = True
+                        update_flag = True
                     else:
-                        updateFlag = True  # No change if T-C < t < T + H
+                        update_flag = True  # No change if T-C < t < T + H
                 else:
                     if temperature_last_updated < (self._target_temperature - self.cold_tolerance):
                         self.hass.add_job(self.async_cooler_element_off)  # Turn off cooler at t < T - C
-                        updateFlag = True
+                        update_flag = True
                     else:
                         self.hass.add_job(self.async_cooler_element_on)
-                        updateFlag = True
-        elif self._mode == HVAC_MODE_OFF:
+                        update_flag = True
+        elif self._mode == HVACMode.OFF:
             self.heater_cooler_status = "Off"
 
-        if updateFlag:
+        if update_flag:
             self.last_changed_millis = time.time()
+
+        self.thermostatStateManager.update_thermostat_status(self.board_id, self.entity_id, self.heater_cooler_status)
 
         # if self._name == 'WC-12345678-1':
         #     print("WC-12345678-1", temperature, self.heater_cooler_status)
@@ -622,22 +797,22 @@ class EThermostat(ClimateEntity):
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     async def refresh_relay(self):
         # _LOGGER.warning("refresh_relay starting")
-        if self.hass is not None and self.mqtt is not None:
+        if self.hass is not None:
             # _LOGGER.warning(f"refresh_relay for {self.entity_id}")
             if self.heater_cooler_status == "Heater On" or self.heater_cooler_status == "Cooler On":
-                self.mqtt.publish(self.hass, self.heating_element_command_topic, payload=self.heater_cooler_status)
-                if self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
+                mqtt.publish(self.hass, self.heating_element_command_topic, payload=self.heater_cooler_status)
+                if self.relay_enabled and self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
                     if self.relay_command_topic is not None:
-                        # self.mqtt.publish(self.hass, self.relay_command_topic, "1")
+                        # mqtt.publish(self.hass, self.relay_command_topic, "1")
                         task = self.hass.async_create_task(self.delay_and_call_relay("1"))
                         self.background_tasks.append(task)
             else:
-                self.mqtt.publish(self.hass, self.heating_element_command_topic, self.heater_cooler_status)
-                if self.relay_type is not None and (
+                mqtt.publish(self.hass, self.heating_element_command_topic, self.heater_cooler_status)
+                if self.relay_enabled and self.relay_type is not None and (
                         self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
                     if self.relay_command_topic is not None:
                         self.remove_background_tasks()
-                        self.mqtt.publish(self.hass, self.relay_command_topic, "0")
+                        mqtt.publish(self.hass, self.relay_command_topic, "0")
         # _LOGGER.warning("refresh_relay finished")
         return
 
@@ -677,7 +852,7 @@ class EThermostat(ClimateEntity):
     @property
     def temperature_unit(self):
         """Return the unit of measurement."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def target_temperature_step(self):
@@ -701,11 +876,11 @@ class EThermostat(ClimateEntity):
 
     @property
     def icon(self) -> Optional[str]:
-        if self._mode == HVAC_MODE_OFF:
+        if self._mode == HVACMode.OFF:
             return 'mdi:power'
-        elif self._mode == HVAC_MODE_HEAT:
+        elif self._mode == HVACMode.HEAT:
             return 'mdi:fire'
-        elif self._mode == HVAC_MODE_COOL:
+        elif self._mode == HVACMode.COOL:
             return 'mdi:snowflake'
         return self._icon
 
@@ -713,22 +888,22 @@ class EThermostat(ClimateEntity):
     def set_temperature(self, **kwargs) -> None:
         _LOGGER.info("set_temperature called")
         self._target_temperature = kwargs.get('temperature', None)
-        self.mqtt.publish(self.hass, self.target_temperature_command_topic, self._target_temperature)
+        mqtt.publish(self.hass, self.target_temperature_command_topic, self._target_temperature)
 
     # built in function
     def set_hvac_mode(self, hvac_mode: str) -> None:
         self._mode = hvac_mode
         _LOGGER.info("mode change %s", hvac_mode)
-        self.mqtt.publish(self.hass, self.mode_command_topic, self._mode)
+        mqtt.publish(self.hass, self.mode_command_topic, self._mode)
         if self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
-            if self._mode == HVAC_MODE_OFF:
+            if self._mode == HVACMode.OFF:
                 if self.relay_command_topic is not None:
                     self.remove_background_tasks()   # Needed if a relay ON with delay is already pending
-                    self.mqtt.publish(self.hass, self.relay_command_topic, "0")
+                    mqtt.publish(self.hass, self.relay_command_topic, "0")
 
     async def delay_and_call_relay(self, logic):
         await asyncio.sleep(random.randint(1, 24))
-        self.mqtt.publish(self.hass, self.relay_command_topic, logic)
+        mqtt.publish(self.hass, self.relay_command_topic, logic)
 
     @property
     def supported_features(self):
@@ -741,41 +916,41 @@ class EThermostat(ClimateEntity):
     async def async_heater_element_on(self) -> None:
         if self.hass is not None:
             self.heater_cooler_status = "Heater On"
-            self.mqtt.publish(self.hass, self.heating_element_command_topic, payload="Heater On")
-            if self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
+            mqtt.publish(self.hass, self.heating_element_command_topic, payload="Heater On")
+            if self.relay_enabled and self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
                 if self.relay_command_topic is not None:
-                    # self.mqtt.publish(self.hass, self.relay_command_topic, "1")
+                    # mqtt.publish(self.hass, self.relay_command_topic, "1")
                     task = self.hass.async_create_task(self.delay_and_call_relay("1"))
                     self.background_tasks.append(task)
 
     async def async_heater_element_off(self) -> None:
         if self.hass is not None:
             self.heater_cooler_status = "Heater Off"
-            self.mqtt.publish(self.hass, self.heating_element_command_topic, payload="Heater Off")
-            if self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
+            mqtt.publish(self.hass, self.heating_element_command_topic, payload="Heater Off")
+            if self.relay_enabled and self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
                 if self.relay_command_topic is not None:
                     self.remove_background_tasks()
-                    self.mqtt.publish(self.hass, self.relay_command_topic, "0")
+                    mqtt.publish(self.hass, self.relay_command_topic, "0")
                     # self.hass.async_create_task(self.delay_and_call_relay("0"))
 
     async def async_cooler_element_on(self) -> None:
         if self.hass is not None:
             self.heater_cooler_status = "Cooler On"
-            self.mqtt.publish(self.hass, self.heating_element_command_topic, "Cooler On")
+            mqtt.publish(self.hass, self.heating_element_command_topic, "Cooler On")
             if self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
                 if self.relay_command_topic is not None:
-                    # self.mqtt.publish(self.hass, self.relay_command_topic, "1")
+                    # mqtt.publish(self.hass, self.relay_command_topic, "1")
                     task = self.hass.async_create_task(self.delay_and_call_relay("1"))
                     self.background_tasks.append(task)
 
     async def async_cooler_element_off(self) -> None:
         if self.hass is not None:
             self.heater_cooler_status = "Cooler Off"
-            self.mqtt.publish(self.hass, self.heating_element_command_topic, "Cooler Off")
+            mqtt.publish(self.hass, self.heating_element_command_topic, "Cooler Off")
             if self.relay_type is not None and (self.relay_type == SWITCH_TYPE_RELAY_BOARD or self.relay_type == SWITCH_TYPE_BUILTIN):
                 if self.relay_command_topic is not None:
                     self.remove_background_tasks()
-                    self.mqtt.publish(self.hass, self.relay_command_topic, "0")
+                    mqtt.publish(self.hass, self.relay_command_topic, "0")
                     # self.hass.async_create_task(self.delay_and_call_relay("0"))
 
     async def async_thermostat_turn_on(self) -> None:
@@ -793,17 +968,17 @@ class EThermostat(ClimateEntity):
     async def _async_set_mode_off(self):
         """Turn mode to off."""
         await self.hass.services.async_call(CLIMATE_DOMAIN, SERVICE_SET_HVAC_MODE,
-                                            {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: HVAC_MODE_OFF})
+                                            {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: HVACMode.OFF})
 
     async def _async_set_mode_heating(self):
         """Turn mode to heat."""
         await self.hass.services.async_call(CLIMATE_DOMAIN, SERVICE_SET_HVAC_MODE,
-                                            {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: HVAC_MODE_HEAT})
+                                            {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: HVACMode.HEAT})
 
     async def _async_set_mode_cooling(self):
         """Turn mode to cool."""
         await self.hass.services.async_call(CLIMATE_DOMAIN, SERVICE_SET_HVAC_MODE,
-                                            {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: HVAC_MODE_COOL})
+                                            {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: HVACMode.COOL})
 
 
 def _read_automations_from_file(automation_path):
@@ -1153,7 +1328,7 @@ class ScheduleService1:
         # if schedule_default_rule['onoff_default']:
         #     action1['data'] = OrderedDict()
         #     action1['data']['entity_id'] = entity
-        #     action1['data'][ATTR_HVAC_MODE] = HVAC_MODE_HEAT_COOL
+        #     action1['data'][ATTR_HVAC_MODE] = HVACMode.HEAT_COOL
         #     action1[ATTR_SERVICE] = '{DOMAIN}.{SERVICE}'.format(DOMAIN=CLIMATE_DOMAIN, SERVICE=SERVICE_SET_HVAC_MODE)
         # else:
         #     action1['data'] = OrderedDict()
@@ -1213,7 +1388,7 @@ class ScheduleService1:
         # if schedule_custom_rule['onoff_custom']:
         #     action1['data'] = OrderedDict()
         #     action1['data']['entity_id'] = entity
-        #     action1['data'][ATTR_HVAC_MODE] = HVAC_MODE_HEAT_COOL
+        #     action1['data'][ATTR_HVAC_MODE] = HVACMode.HEAT_COOL
         #     action1[ATTR_SERVICE] = '{DOMAIN}.{SERVICE}'.format(DOMAIN=CLIMATE_DOMAIN, SERVICE=SERVICE_SET_HVAC_MODE)
         # else:
         #     action1['data'] = OrderedDict()

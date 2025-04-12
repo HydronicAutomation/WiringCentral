@@ -1,7 +1,8 @@
 from django.conf.urls import url
 from .views import SaveLongLivedAccessTokenView, ListBoardView, ConfigurationThermostatView, configuration_ajax_view, \
     ConfigurationSensorView, ConfigurationRelayView, configuration_relay_ajax_view, ConfigurationMasterSlaveView, \
-    ConfigurationOptionsView, ConfigurationDefaultRulesView, ListBoardMinimalView
+    ConfigurationOptionsView, ConfigurationDefaultRulesView, ListBoardMinimalView, \
+    ConfigurationBoardStateManagerView
 
 urlpatterns = [
     url(r'^save_access_token/$', SaveLongLivedAccessTokenView.as_view(), name='save_access_token_view'),
@@ -19,6 +20,10 @@ urlpatterns = [
 
     url(r'^configuration_masterslave_view/(?P<board>[-\w]+)/$', ConfigurationMasterSlaveView.as_view(),
         name='configuration_masterslave_view'),
+
+    url(r'^configuration_board_state_manager_view/(?P<board>[-\w]+)/$',
+        ConfigurationBoardStateManagerView.as_view(),
+        name='configuration_board_state_manager_view'),
 
     url(r'^configuration_default_rules_view/(?P<board>[-\w]+)/$', ConfigurationDefaultRulesView.as_view(),
         name='configuration_default_rules_view'),

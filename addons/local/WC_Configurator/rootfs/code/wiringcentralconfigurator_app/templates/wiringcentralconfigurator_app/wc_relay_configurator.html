@@ -8,7 +8,7 @@
 
     <div class="row">
 
-        <div class="col-md-4 order-md-2 mb-4">
+        <div class="col-md-3 order-md-2 mb-4">
             <h4 class="d-flex justify-content-between align-items-center mb-3">
                 <span class="text-muted">RELAYS</span>
                 <span class="badge badge-secondary badge-pill" id="board_details_count">0</span>
@@ -31,19 +31,22 @@
             </div>
         </div>
 
-        <div class="col-md-8 order-md-1">
+        <div class="col-md-9 order-md-1">
             <h4 class="mb-3">WiringCentral Relay Configurator</h4>
             <form method="post" class="needs-validation">
                 {% csrf_token %}
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <h5>{% if thermostatID %} {{ thermostatID|capfirst }} {% endif %}</h5>
+                        <h5>Thermostat ID</h5>
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <h5>Relay Type</h5>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <h5>Feed</h5>
+                    <div class="col-md-3 mb-3">
+                        <h5>Relay Output</h5>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <h5>Enable</h5>
                     </div>
                 </div>
 
@@ -51,11 +54,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_1 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_1 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_1 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_1 }}
+                            <label class="form-check-label" for="id_enable_1">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -63,11 +72,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_2 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_2 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_2 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_2 }}
+                            <label class="form-check-label" for="id_enable_2">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -75,11 +90,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_3 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_3 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_3 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_3 }}
+                            <label class="form-check-label" for="id_enable_3">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -87,11 +108,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_4 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_4 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_4 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_4 }}
+                            <label class="form-check-label" for="id_enable_4">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -99,11 +126,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_5 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_5 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_5 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_5 }}
+                            <label class="form-check-label" for="id_enable_5">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -111,11 +144,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_6 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_6 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_6 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_6 }}
+                            <label class="form-check-label" for="id_enable_6">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -123,11 +162,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_7 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_7 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_7 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_7 }}
+                            <label class="form-check-label" for="id_enable_7">Enable</label>
+                        </div>
                     </div>
                 </div>
 
@@ -135,11 +180,17 @@
                     <div class="col-md-4 mb-3">
                         {{ form.name_8 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.type_8 }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         {{ form.feed_8 }}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check">
+                            {{ form.enable_8 }}
+                            <label class="form-check-label" for="id_enable_8">Enable</label>
+                        </div>
                     </div>
                 </div>
 

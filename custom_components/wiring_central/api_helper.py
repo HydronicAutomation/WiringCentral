@@ -1,12 +1,9 @@
 import os
 import json
-from pprint import pprint
 from homeassistant.components.http import HomeAssistantView, KEY_HASS
-from homeassistant.core import HomeAssistant, callback
-
+from homeassistant.core import callback
 from .const import DOMAIN
-from .configurator import ConfiguratorHelperThermostat, ConfiguratorHelperSensor, ConfiguratorHelperRelay, \
-    ConfiguratorHelperMasterSlave, ConfiguratorHelperDefaultRule
+from .configurator import ConfiguratorHelperThermostat, ConfiguratorHelperSensor, ConfiguratorHelperRelay
 from .helpers.schedule_helper import ScheduleService
 from .helpers.masterslave_helper import MasterSlaveService
 
@@ -36,6 +33,7 @@ URL_WC_CLIMATE_BOARD_DEFAULT_RULE_CONFIGURATION = "/api/wc/climate/default_rule/
 URL_WC_CLIMATE_BOARD_CONFIGURATION = "/api/wc/climate/board/configuration/{board_id}"
 URL_WC_SENSOR_BOARD_CONFIGURATION = "/api/wc/sensor/board/configuration/{board_id}"
 URL_WC_RELAY_BOARD_CONFIGURATION = "/api/wc/relay/board/configuration/{board_id}"
+URL_WC_BOARD_MANAGER_CONFIGURATION = "/api/wc/manager/board/configuration/{board_id}"
 
 
 class WCAPIClimateEntitiesView(HomeAssistantView):
@@ -47,7 +45,7 @@ class WCAPIClimateEntitiesView(HomeAssistantView):
     @callback
     def get(self, request):
         """Get all climate entities registered using WC."""
-        return self.json(request.app["hass"].data[DATA_ENTITIES_CLIMATE])
+        return self.json(request.app[KEY_HASS].data[DATA_ENTITIES_CLIMATE])
 
 
 class WCAPIClimateStatusView(HomeAssistantView):
@@ -72,7 +70,7 @@ class WCAPISensorBoardDetailsView(HomeAssistantView):
     def get(self, request, board_id):
         """Get all sensor entity details registered using WC for the Board"""
         board_data = []
-        all_data = request.app["hass"].data[DATA_ENTITIES_SENSOR_DETAILS]
+        all_data = request.app[KEY_HASS].data[DATA_ENTITIES_SENSOR_DETAILS]
         for data in all_data:
             if data.get("BOARD", "") == board_id or data.get("BOARD", "") == "ESPNOW":
                 board_data.append(data)
@@ -91,7 +89,7 @@ class WCAPISensorBoardsView(HomeAssistantView):
     def get(self, request):
         """Get all boards registered using WC for the Board"""
         boards = []
-        all_data = request.app["hass"].data[DATA_ENTITIES_SENSOR_DETAILS]
+        all_data = request.app[KEY_HASS].data[DATA_ENTITIES_SENSOR_DETAILS]
         for data in all_data:
             if data.get("BOARD", "") not in boards and data.get("BOARD", "") != "ESPNOW":
                 boards.append(data.get("BOARD", ""))
@@ -107,7 +105,7 @@ class WCAPISensorEntityDetailsView(HomeAssistantView):
     @callback
     def get(self, request):
         """Get all sensor entity details registered using WC."""
-        return self.json(request.app["hass"].data[DATA_ENTITIES_SENSOR_DETAILS])
+        return self.json(request.app[KEY_HASS].data[DATA_ENTITIES_SENSOR_DETAILS])
 
 
 class WCAPISensorEntitiesView(HomeAssistantView):
@@ -119,7 +117,7 @@ class WCAPISensorEntitiesView(HomeAssistantView):
     @callback
     def get(self, request):
         """Get all sensor entities registered using WC."""
-        return self.json(request.app["hass"].data[DATA_ENTITIES_SENSOR])
+        return self.json(request.app[KEY_HASS].data[DATA_ENTITIES_SENSOR])
 
 
 class WCAPISensorStatusView(HomeAssistantView):
@@ -155,7 +153,7 @@ class WCAPIRelayEntitiesView(HomeAssistantView):
     @callback
     def get(self, request):
         """Get all sensor entities registered using WC."""
-        return self.json(request.app["hass"].data[DATA_ENTITIES_SWITCH])
+        return self.json(request.app[KEY_HASS].data[DATA_ENTITIES_SWITCH])
 
 
 class WCAPIRelayEntityDetailsView(HomeAssistantView):
@@ -167,7 +165,7 @@ class WCAPIRelayEntityDetailsView(HomeAssistantView):
     @callback
     def get(self, request):
         """Get all sensor entity details registered using WC."""
-        return self.json(request.app["hass"].data[DATA_ENTITIES_SWITCH_DETAILS])
+        return self.json(request.app[KEY_HASS].data[DATA_ENTITIES_SWITCH_DETAILS])
 
 
 class WCAPIClimateConfigurationView(HomeAssistantView):
@@ -177,12 +175,16 @@ class WCAPIClimateConfigurationView(HomeAssistantView):
     name = "api:wc:climate:board:configuration"
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
+    def __init__(self, hass) -> None:
+        super().__init__()
+        self.hass = hass
+
     @callback
-    def get(self, request, board_id):
+    async def get(self, request, board_id):
         json_data = []
         try:
             thermostat_configurator = ConfiguratorHelperThermostat()
-            config = thermostat_configurator.get_thermostat_configuration(board_id)
+            config = await thermostat_configurator.async_get_thermostat_configuration(board_id)
             if config is not None:
                 json_data = json.loads(config)
             # f = open(f"{self.dir_path}/{board_id}.txt", "r")
@@ -198,10 +200,7 @@ class WCAPIClimateConfigurationView(HomeAssistantView):
             event_data = json.loads(body) if body else None
             if event_data is not None:
                 thermostat_configurator = ConfiguratorHelperThermostat()
-                thermostat_configurator.save_thermostat_configuration(board_id, event_data)
-                # f = open(f"{self.dir_path}/{board_id}.txt", "w")
-                # f.write(event_data)
-                # f.close()
+                await thermostat_configurator.async_save_thermostat_configuration(board_id, event_data)
 
         except ValueError:
             return self.json_message(
@@ -226,7 +225,7 @@ class WCAPIMasterSlaveConfigurationView(HomeAssistantView):
 
 
     @callback
-    def get(self, request, board_id):
+    async def get(self, request, board_id):
         data = []
         try:
             config = self.masterslaveService.get_masterslave_settings_for_board(board_id)
@@ -253,7 +252,7 @@ class WCAPIMasterSlaveConfigurationView(HomeAssistantView):
                 # pprint(event_data)
                 # masterslave_configurator = ConfiguratorHelperMasterSlave()
                 # masterslave_configurator.save_thermostat_configuration(board_id, event_data)
-                self.masterslaveService.save_masterslave_settings_for_board(board_id, event_data)
+                self.masterslaveService.async_save_masterslave_settings_for_board(board_id, event_data)
                 # f = open(f"{self.dir_path}/{board_id}.txt", "w")
                 # f.write(event_data)
                 # f.close()
@@ -279,12 +278,13 @@ class WCAPIDefaultRuleConfigurationView(HomeAssistantView):
     name = "api:wc:climate:default_rule:configuration"
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
-    def __init__(self, scheduleService: ScheduleService) -> None:
+    def __init__(self, hass, scheduleService: ScheduleService) -> None:
         super().__init__()
+        self.hass = hass
         self.scheduleService = scheduleService
 
     @callback
-    def get(self, request, board_id):
+    async def get(self, request, board_id):
         data = []
         try:
             # default_configurator = ConfiguratorHelperDefaultRule()
@@ -308,7 +308,7 @@ class WCAPIDefaultRuleConfigurationView(HomeAssistantView):
             if event_data is not None:
                 print(type(event_data))
                 # defaultrule_configurator = ConfiguratorHelperDefaultRule()
-                self.scheduleService.save_defaultrule_configuration(event_data)
+                self.scheduleService.async_default_rule_configuration(event_data)
                 # f = open(f"{self.dir_path}/{board_id}.txt", "w")
                 # f.write(event_data)
                 # f.close()
@@ -334,12 +334,16 @@ class WCAPISensorConfigurationView(HomeAssistantView):
     name = "api:wc:sensor:board:configuration"
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
+    def __init__(self, hass) -> None:
+        super().__init__()
+        self.hass = hass
+
     @callback
-    def get(self, request, board_id):
+    async def get(self, request, board_id):
         json_data = []
         try:
             sensor_configurator = ConfiguratorHelperSensor()
-            config = sensor_configurator.get_sensor_configuration(board_id)
+            config = sensor_configurator.async_get_sensor_configuration(board_id)
             if config is not None:
                 json_data = json.loads(config)
             # f = open(f"{self.dir_path}/{board_id}.txt", "r")
@@ -355,7 +359,7 @@ class WCAPISensorConfigurationView(HomeAssistantView):
             event_data = json.loads(body) if body else None
             if event_data is not None:
                 thermostat_configurator = ConfiguratorHelperSensor()
-                thermostat_configurator.save_sensor_configuration(board_id, event_data)
+                thermostat_configurator.async_save_sensor_configuration(board_id, event_data)
                 # f = open(f"{self.dir_path}/{board_id}.txt", "w")
                 # f.write(event_data)
                 # f.close()
@@ -377,13 +381,18 @@ class WCAPIRelayConfigurationView(HomeAssistantView):
     name = "api:wc:realy:board:configuration"
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
+    def __init__(self, hass) -> None:
+        super().__init__()
+        self.hass = hass
+
     @callback
-    def get(self, request, board_id):
+    async def get(self, request, board_id):
         json_data = []
         try:
             print("WCAPIRelayConfigurationView get")
             sensor_configurator = ConfiguratorHelperRelay()
-            config = sensor_configurator.get_relay_configuration(board_id)
+            config = await sensor_configurator.async_get_relay_configuration(board_id)
+            print("WCAPIRelayConfigurationView config", config)
             if config is not None:
                 json_data = json.loads(config)
             # f = open(f"{self.dir_path}/{board_id}.txt", "r")
@@ -391,6 +400,7 @@ class WCAPIRelayConfigurationView(HomeAssistantView):
             # f.close()
         except Exception as e:
             print("Exception {}".format(e))
+        print("=============== WCAPIRelayConfigurationView get json_data", json_data)
         return self.json(json_data)
 
     async def post(self, request, board_id):
@@ -401,7 +411,7 @@ class WCAPIRelayConfigurationView(HomeAssistantView):
             print(event_data)
             if event_data is not None:
                 thermostat_configurator = ConfiguratorHelperRelay()
-                thermostat_configurator.save_relay_configuration(board_id, event_data)
+                thermostat_configurator.async_save_sensor_configuration(board_id, event_data)
                 # f = open(f"{self.dir_path}/{board_id}.txt", "w")
                 # f.write(event_data)
                 # f.close()
@@ -414,3 +424,52 @@ class WCAPIRelayConfigurationView(HomeAssistantView):
             print("Exception {}".format(e))
             raise Exception
         return self.json_message(f"{board_id} - {event_data}")
+
+
+
+class WCAPIBoardStateConfigurationView(HomeAssistantView):
+    """View to handle thermostat configuration requests."""
+
+    url = URL_WC_BOARD_MANAGER_CONFIGURATION
+    name = "api:wc:board:manager:configuration"
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+
+    def __init__(self, hass, boardStateManager) -> None:
+        super().__init__()
+        self.hass = hass
+        self.boardStateManager = boardStateManager
+
+    @callback
+    async def get(self, request, board_id):
+        print("=============== WCAPIBoardStateConfigurationView get {}".format(board_id))
+        json_data = {}
+        try:
+            # Direct async call is simpler since we're in an async context with @callback
+            config = await self.boardStateManager.async_get_board_configuration(board_id)
+            if config is not None:
+                json_data = json.loads(config)
+        except Exception as e:
+            print("=============== Exception {}".format(e))
+
+        print("=============== WCAPIBoardStateConfigurationView get json_data", json_data)
+        return self.json(json_data)
+
+    async def post(self, request, board_id):
+        body = await request.text()
+        board_config_data = {}
+        try:
+            board_config_data = json.loads(body) if body else None
+            if board_config_data is not None:
+                self.boardStateManager.async_save_thermostat_board_configuration(board_id, board_config_data)
+                # f = open(f"{self.dir_path}/{board_id}.txt", "w")
+                # f.write(event_data)
+                # f.close()
+
+        except ValueError:
+            return self.json_message(
+                "Event data should be valid JSON."
+            )
+        except Exception as e:
+            print("Exception {}".format(e))
+
+        return self.json_message(f"{board_id} - {board_config_data}")

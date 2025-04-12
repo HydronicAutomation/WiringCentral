@@ -9,7 +9,7 @@
   "ssdp": [],
   "zeroconf": [],
   "homekit": {},
-  "version": "0.10.5",
+  "version": "0.12.1",
   "codeowners": ["@elementzonline"],
   "mqtt": [
     "elementz/climate/#",

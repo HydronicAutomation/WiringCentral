@@ -28,11 +28,15 @@
 
     <div class="row">
         <div class="col-sm border-left mb-1">
-            <a href="{% url 'configuration_default_rules_view' thermostatID %}" class="btn  btn-block btn-info text-white">Default Schedules</a>
+            <a href="{% url 'configuration_default_rules_view' thermostatID %}" class="btn  btn-block btn-primary text-white">Default Schedules</a>
         </div>
 
         <div class="col-sm border-left mb-1">
-            <a href="{% url 'configuration_masterslave_view' thermostatID %}" class="btn  btn-block btn-danger text-white">Master/Slave Configuration</a>
+            <a href="{% url 'configuration_masterslave_view' thermostatID %}" class="btn  btn-block btn-info text-white">Master/Slave Configuration</a>
+        </div>
+
+        <div class="col-sm border-left mb-1">
+            <a href="{% url 'configuration_board_state_manager_view' thermostatID %}" class="btn  btn-block btn-danger text-white">State Manager</a>
         </div>
     </div>
 

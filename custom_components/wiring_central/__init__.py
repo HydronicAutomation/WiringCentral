@@ -27,11 +27,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass_data = hass.data.setdefault(DOMAIN, {})
     hass_data[entry.entry_id] = {}
 
-    for component in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, component)
-        )
-        _LOGGER.debug(f"async_setup_entry: loading: {component}")
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    )
+    _LOGGER.debug(f"async_setup_entry: loading: {PLATFORMS}")
+
+    # for component in PLATFORMS:
+    #     hass.async_create_task(
+    #         hass.config_entries.async_forward_entry_setup(entry, component)
+    #     )
+    #     _LOGGER.debug(f"async_setup_entry: loading: {component}")
 
     # hass.async_create_task(async_load_platform(hass=hass, component=CLIMATE_DOMAIN, platform=DOMAIN, discovered={}, hass_config=config))
     # hass.async_create_task(async_load_platform(hass=hass, component=SENSOR_DOMAIN, platform=DOMAIN, discovered={}, hass_config=config))

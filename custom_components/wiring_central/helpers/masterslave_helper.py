@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import pprint
@@ -13,19 +14,26 @@ class MasterSlaveService:
         super().__init__()
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.masterslave_filename = os.path.join(dir_path, 'masterslave.yaml')
-        self.masterslave_data = self.read_masterslave_from_file()
+        self.masterslave_data = {"exclude": [], "default_rules": []}
         pprint.pp(self.masterslave_data)
-        # self.topics = {}
+        self.loop = asyncio.get_running_loop()
+
+    async def init(self):
+        await self.loop.run_in_executor(None, self.read_masterslave_from_file)
 
     def read_masterslave_from_file(self):
         data = {"exclude": [], "default_rules": []}
         if not os.path.isfile(self.masterslave_filename):
             return data
         data = load_yaml(self.masterslave_filename)
+        self.masterslave_data = data
         return data
 
     def get_masterslave_settings_for_board(self, board):
         return self.masterslave_data.get(board)
+
+    def async_save_masterslave_settings_for_board(self, board, data):
+        self.loop.run_in_executor(None, self.save_masterslave_settings_for_board, board, data)
 
     def save_masterslave_settings_for_board(self, board, data):
         self.masterslave_data[board] = data

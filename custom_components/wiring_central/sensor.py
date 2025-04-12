@@ -1,4 +1,5 @@
 """Platform for sensor integration."""
+import asyncio
 import json
 import os
 import random
@@ -8,12 +9,11 @@ from typing import Optional
 
 from homeassistant.components import mqtt
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import Entity, DeviceInfo
 from homeassistant.const import (
-    DEVICE_CLASS_TEMPERATURE,
-    TEMP_CELSIUS,
-    DEVICE_CLASS_HUMIDITY, PERCENTAGE)
+    PERCENTAGE, UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from .const import DOMAIN, ATTR_MOVING_AVERAGE_LENGTH, MOVING_AVERAGE_LENGTH
 from .api_helper import WCAPISensorStatusView, WCAPISensorEntitiesView, WCAPISensorBoardDetailsView, \
@@ -26,8 +26,10 @@ DATA_ENTITIES_SENSOR_DETAILS = "data_WC_entities_sensor_details"
 _LOGGER = logging.getLogger(__name__)
 
 
-def check_sensor_disabled(sensor_configurator, board_id, sensor_type, sensor_id):
-    config = sensor_configurator.get_sensor_configuration(board_id)
+async def check_sensor_disabled(sensor_configurator, board_id, sensor_type, sensor_id):
+    loop = asyncio.get_event_loop()
+    config = await loop.run_in_executor(None, sensor_configurator.get_sensor_configuration, board_id)
+    # config = sensor_configurator.get_sensor_configuration(board_id)
     if config is not None:
         json_data = json.loads(config)
         for sensor_config in json_data:
@@ -46,7 +48,7 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
     hass.http.register_view(WCAPISensorEntityDetailsView)
     hass.http.register_view(WCAPISensorBoardDetailsView)
     hass.http.register_view(WCAPISensorBoardsView)
-    hass.http.register_view(WCAPISensorConfigurationView)
+    hass.http.register_view(WCAPISensorConfigurationView(hass=hass))
 
     platform_config = config_entry.data or {}
     if len(config_entry.options) > 0:
@@ -63,7 +65,7 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
     configHelperSensor = ConfiguratorHelperSensor()
 
     @callback
-    def device_config_received(msg):
+    async def device_config_received(msg):
         """Handle new MQTT messages."""
         _LOGGER.info("sensor_config_received %s", DOMAIN)
         node_id = msg.topic.split("/")[2]
@@ -81,7 +83,7 @@ async def async_setup_entry(hass, config_entry: ConfigEntry, async_add_devices):
             hass.data[DATA_ENTITIES_SENSOR_DETAILS].append({"BOARD": board_id, "OBJECT_ID": object_id, "TYPE": sensor_type, "BUS": bus_id, "INDEX": index_id, "SENSOR": sensor_id})
 
             entity_data = json.loads(msg.payload)
-            sensor_status = check_sensor_disabled(configHelperSensor, board_id, sensor_type, sensor_id)
+            sensor_status = await check_sensor_disabled(configHelperSensor, board_id, sensor_type, sensor_id)
             if sensor_status:
                 entity_data[ATTR_MOVING_AVERAGE_LENGTH] = moving_avg_length
                 async_add_devices([ESensor(
@@ -108,10 +110,10 @@ class ESensor(Entity):
         self._unique_id = unique_id
         self._name = name
         self._current_temperature = 0
-        self._device_class = DEVICE_CLASS_TEMPERATURE
-        self._unit_of_measurement = TEMP_CELSIUS
+        self._device_class = SensorDeviceClass.TEMPERATURE
+        self._unit_of_measurement = UnitOfTemperature.CELSIUS
         if self._unique_id.find("SHTC3-HUM") > 0:
-            self._device_class = DEVICE_CLASS_HUMIDITY
+            self._device_class = SensorDeviceClass.HUMIDITY
             self._unit_of_measurement = PERCENTAGE
         self._data = data
 
@@ -127,9 +129,8 @@ class ESensor(Entity):
         _LOGGER.info("async_added_to_hass %s", self._name)
         if self.hass is not None:
             _LOGGER.info("susbcribing to mqtt %s", self._name)
-            self.mqtt = self.hass.components.mqtt
             # print("!!!!!!!!!!loop_subscribe!!!!!!!")
-            await self.mqtt.async_subscribe(self.current_temperature_topic, self._set_current_temperature)
+            await mqtt.async_subscribe(self.hass, self.current_temperature_topic, self._set_current_temperature)
 
         return result
 

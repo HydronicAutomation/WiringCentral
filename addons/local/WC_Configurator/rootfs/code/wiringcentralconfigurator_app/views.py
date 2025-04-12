@@ -12,13 +12,14 @@ from django.urls import reverse_lazy, reverse
 from django.http.response import HttpResponseRedirect, JsonResponse
 from django.contrib import messages
 
-from .forms import TokenAddEditForm, ConfigurationForm, SensorConfigurationForm, RelayConfigurationForm, \
+from .forms import ConfigurationBoardStateManagerForm, TokenAddEditForm, ConfigurationForm, SensorConfigurationForm, RelayConfigurationForm, \
     ConfigurationMasterSlaveForm, ConfigurationDefaultRuleFormSet, ConfigurationMasterSlaveFormSet
 from .models import LongLivedAccessToken
 from .api_client import get_boards, get_board_details, post_board_configuration, get_board_configuration, \
     post_board_sensor_configuration, get_board_sensor_configuration, get_board_relay_configuration, \
     post_board_relay_configuration, get_relay_entities, get_relay_entity_details, get_board_masterslave_configuration, \
-    post_board_masterslave_configuration, get_board_defaultrule_configuration, post_board_default_rule_configuration
+    post_board_masterslave_configuration, get_board_defaultrule_configuration, post_board_default_rule_configuration, \
+    get_board_state_manager_configuration, post_board_state_manager_configuration
 
 
 # Create your views here.
@@ -103,7 +104,8 @@ class ListBoardView(TemplateView):
                 if board_obj[0]:
                     print(board_obj)
                     context['board_list'] = board_obj[1]
-            except:
+            except Exception as e:
+                print("Exception occurred ", e)
                 messages.error(self.request, 'Home Assistant not responding', fail_silently=True)
         # context['board_list'] = ['WC-1234567']
         return context
@@ -383,6 +385,7 @@ class ConfigurationRelayView(FormView):
                             initial['name_{}'.format(num)] = data['name']
                             initial['type_{}'.format(num)] = data['type']
                             initial['feed_{}'.format(num)] = data['feed']
+                            initial['enable_{}'.format(num)] = data.get('enable', True)
                             num += 1
                         # print(initial)
                         context['form'] = self.form_class(initial=initial)
@@ -404,11 +407,12 @@ class ConfigurationRelayView(FormView):
                 for num in range(1, 9):
                     datas.append({"name": form.cleaned_data['name_{}'.format(num)],
                                   "type": form.cleaned_data['type_{}'.format(num)],
-                                  "feed": form.cleaned_data['feed_{}'.format(num)]})
+                                  "feed": form.cleaned_data['feed_{}'.format(num)],
+                                  "enable": form.cleaned_data['enable_{}'.format(num)]})
                 token_obj = LongLivedAccessToken.objects.first()
                 if token_obj is not None and self.get_kwargs() is not None:
                     try:
-                        status, message =post_board_relay_configuration(token_obj.token, board_id=board_name, data=datas)
+                        status, message = post_board_relay_configuration(token_obj.token, board_id=board_name, data=datas)
                         if not status:
                             messages.error(self.request, 'Error occured: {}'.format(message), fail_silently=True)
                             return HttpResponseRedirect(reverse_lazy('configuration_relay_view', kwargs={"board": board_name}))
@@ -431,6 +435,88 @@ class ConfigurationOptionsView(TemplateView):
         context['full_access'] = settings.FULL_ACCESS
         return context
 
+
+class ConfigurationBoardStateManagerView(FormView):
+    template_name = 'wiringcentralconfigurator_app/wc_board_state_manager.html'
+    form_class = ConfigurationBoardStateManagerForm
+
+    def get_success_url(self):
+        return reverse('configuration_board_state_manager_view', kwargs={'board': self.kwargs.get('board')})
+
+    def get_form_kwargs(self):
+        print("get_form_kwargs")
+        kwargs = super().get_form_kwargs()
+        return kwargs
+
+    def get_kwargs(self):
+        kwargs = self.kwargs.get('board')
+        return kwargs
+
+    def get_initial(self):
+        print("get_initial")
+        initial = super().get_initial()
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        print('get_context_data')
+
+        token_obj = LongLivedAccessToken.objects.first()
+        board_name = self.kwargs.get('board')
+        context['entity_name'] = board_name
+        context['thermostatID'] = board_name
+        if self.kwargs.get('board') is not None:
+            if token_obj is not None and board_name is not None:
+                try:
+                    # Read the current masterslave config
+                    status, state_data = get_board_state_manager_configuration(token_obj.token, board_name)
+                    print("status, state_data", status, state_data)
+
+                    # state_data = {'enable_cooler_heater_control': 1, 'enable_transformer_control': 1}
+                    if status:
+                        initial = {}
+                        initial['enable_cooler_heater_control'] = state_data.get('enable_cooler_heater_control', 0)
+                        initial['enable_transformer_control'] = state_data.get('enable_transformer_control', 0)
+                        context['form'] = self.form_class(initial=initial)
+                    else:
+                        messages.error(self.request, 'Cannot get board state manager configuration', fail_silently=True)
+                except Exception as e:
+                    print("Exception, {}".format(e))
+                    messages.error(self.request, 'Home Assistant not responding', fail_silently=True)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        board_name = self.kwargs.get('board')
+        form = self.form_class(self.request.POST)
+        datas = {}
+        if form.is_valid():
+
+            datas['enable_cooler_heater_control'] = form.cleaned_data['enable_cooler_heater_control']
+            datas['enable_transformer_control'] = form.cleaned_data['enable_transformer_control']
+
+            token_obj = LongLivedAccessToken.objects.first()
+            if token_obj is not None and self.get_kwargs() is not None:
+                pass
+                try:
+                    # Post the new master slave config
+                    status, message = post_board_state_manager_configuration(token_obj.token, board_id=board_name,
+                                                                             data=datas)
+                    if not status:
+                        messages.error(self.request, 'Error occured: {}'.format(message), fail_silently=True)
+                        return HttpResponseRedirect(
+                            reverse_lazy('configuration_board_state_manager_view', kwargs={"board": board_name}))
+                    messages.success(self.request, 'Board State Manager Configuration applied successfully, Restart HA to view changes!',
+                                     fail_silently=True)
+                    return HttpResponseRedirect(self.get_success_url())
+                except Exception as e:
+                    print("Exception: {}".format(e))
+                    messages.error(self.request, 'Home Assistant not responding, {}'.format(e), fail_silently=True)
+        
+        print("Form is Invalid")
+        print(form.errors)
+        messages.error(self.request, 'Error occured: {}'.format("Form is Invalid"), fail_silently=True)
+        return HttpResponseRedirect(
+            reverse_lazy('configuration_board_state_manager_view', kwargs={"board": board_name}))
 
 class ConfigurationMasterSlaveView(FormView):
     template_name = 'wiringcentralconfigurator_app/wc_master_slave_configurator.html'

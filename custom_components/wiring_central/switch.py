@@ -1,14 +1,11 @@
 import json
-import os
-import random
-import time
 import logging
-from typing import Optional, Any
+from typing import Any
 
-from homeassistant.components.binary_sensor import DEVICE_CLASS_OPENING
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import callback
-from homeassistant.helpers.entity import Entity, DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.components import mqtt
 
 from .const import DOMAIN
@@ -29,7 +26,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     hass.http.register_view(WCAPIRelayStatusView)
     hass.http.register_view(WCAPIRelayEntitiesView)
     hass.http.register_view(WCAPIRelayEntityDetailsView)
-    hass.http.register_view(WCAPIRelayConfigurationView)
+    hass.http.register_view(WCAPIRelayConfigurationView(hass=hass))
 
     if DATA_ENTITIES_SWITCH not in hass.data:
         hass.data[DATA_ENTITIES_SWITCH] = []
@@ -58,7 +55,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             # sensor_status = check_sensor_disabled(configHelperSensor, board_id, sensor_type, sensor_id)
             # if sensor_status:
             async_add_devices([ESwitch(
-                object_id, name,board_id, entity_data)], True)
+                object_id=object_id, name=name, board_id=board_id, data=entity_data)], True)
         else:
             print("Relay already added! - {}".format(object_id))
 
@@ -74,13 +71,13 @@ class ESwitch(SwitchEntity):
     """Representation of a Demo sensor."""
 
     def __init__(
-        self, object_id, name,board_id, data
+        self, object_id, name, board_id, data
     ):
         """Initialize the sensor."""
         self.board_id = board_id
         self._unique_id = object_id
         self._name = name
-        self._device_class = DEVICE_CLASS_OPENING
+        self._device_class = BinarySensorDeviceClass.OPENING
         self._data = data
         self.sw_version = self._data.get('sw', '1.0')
         self.hw_version = self._data.get('hw', '1.0')
@@ -96,10 +93,9 @@ class ESwitch(SwitchEntity):
         result = await super().async_added_to_hass()
         _LOGGER.info("async_added_to_hass %s", self._name)
         if self.hass is not None:
-            _LOGGER.info("susbcribing to mqtt %s", self._name)
-            self.mqtt = self.hass.components.mqtt
+            _LOGGER.info("subscribing to mqtt %s", self._name)
             # print("!!!!!!!!!!loop_subscribe!!!!!!!")
-            await self.mqtt.async_subscribe(self.current_relay_status_topic, self._set_current_temperature)
+            await mqtt.async_subscribe(self.hass, self.current_relay_status_topic, self._set_current_temperature)
         return result
 
     def _set_current_temperature(self, msg):
@@ -145,13 +141,13 @@ class ESwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         # self._state = True
-        self.mqtt.publish(self.hass, self.current_relay_control_topic, 1)
-        print("Turning ON")
+        mqtt.publish(self.hass, self.current_relay_control_topic, 1)
+        # print("Turning ON")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         # self._state = False
-        self.mqtt.publish(self.hass, self.current_relay_control_topic, 0)
-        print("Turning OFF")
+        mqtt.publish(self.hass, self.current_relay_control_topic, 0)
+        # print("Turning OFF")
 
 
 

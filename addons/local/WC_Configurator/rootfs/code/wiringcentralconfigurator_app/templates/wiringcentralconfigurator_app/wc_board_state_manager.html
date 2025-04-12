@@ -11,7 +11,7 @@
             <div class="card p-2">
                 <div class="row">
                     <div class="col-10">
-                        <h4 class="mt-1">WiringCentral MasterSlave Configurator</h4>
+                        <h4 class="mt-1">WiringCentral State Manager</h4>
                     </div>
                     <div class="col-2">
                         <a href="{% url 'configuration_options_view' thermostatID %}" type="button" class="float-right btn btn-primary" >Back</a>
@@ -24,45 +24,9 @@
 
     <div class="row">
         <div class="col-md-8 offset-md-2 order-md-1">
-{#            <h4 class="mb-3">WiringCentral MasterSlave Configurator</h4>#}
             <form method="post" class="needs-validation">
                 {% csrf_token %}
-                {{ form.management_form }}
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <h5>BOARD: {% if thermostatID %} {{ thermostatID|capfirst }} {% endif %}</h5>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <h5>Master thermostat to follow</h5>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <h5>Slave Thermostat</h5>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <h5>(Drop down box)</h5>
-                        <h5>(To select the master thermostat)</h5>
-                    </div>
-                </div>
-
-                {% for iform in form %}
-                    <div id="id_row-{{ forloop.counter0 }}">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                {{ iform.name }}
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                {{ iform.type }}
-                            </div>
-                        </div>
-                        <hr class="mb-4">
-                    </div>
-                {% endfor %}
-
-
+                {{ form.as_p }}
                 <button class="btn btn-primary btn-lg btn-block" type="submit">Save Configuration</button>
             </form>
         </div>
